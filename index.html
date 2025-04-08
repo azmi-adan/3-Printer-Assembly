@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Printer Assembly Guide</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-robot"></i> 3D Printer Assembly Guide</h1>
+        <p class="subtitle">Click to assemble the printer and learn about each component. Click parts after placement for more info!</p>
+        
+        <div class="animation-container">
+            <div id="printer-parts">
+                <div class="workbench"></div>
+            </div>
+            <div id="info-panel">
+                <h2 id="part-title">Welcome to 3D Printer Assembly</h2>
+                <p id="part-description">Click anywhere to begin assembling your 3D printer and learning about additive manufacturing technology!</p>
+                <div id="part-specs" class="hidden">
+                    <h3>Specifications</h3>
+                    <ul id="specs-list"></ul>
+                </div>
+                <button id="detail-btn" class="hidden">
+                    <i class="fas fa-search"></i> Explore Component
+                </button>
+            </div>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div id="progress-bar"></div>
+            </div>
+            <span id="progress-text">0/9</span>
+        </div>
+
+        <div class="controls">
+            <button id="reset-btn"><i class="fas fa-redo"></i> Reset</button>
+            <button id="auto-btn"><i class="fas fa-magic"></i> Auto-Assemble</button>
+        </div>
+    </div>
+
+    <!-- Modal for detailed view -->
+    <div id="part-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="modal-title"></h2>
+            <div class="modal-body">
+                <div class="modal-image-container">
+                    <img id="modal-image" src="" alt="Component image">
+                </div>
+                <div class="modal-text">
+                    <p id="modal-description"></p>
+                    <div class="modal-specs">
+                        <h3>Technical Specifications</h3>
+                        <ul id="modal-specs"></ul>
+                    </div>
+                    <div class="modal-funfact">
+                        <h3>Did You Know?</h3>
+                        <p id="modal-funfact"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
