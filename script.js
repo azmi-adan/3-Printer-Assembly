@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
     const printerPartsContainer = document.getElementById('printer-parts');
     const partTitle = document.getElementById('part-title');
     const partDescription = document.getElementById('part-description');
@@ -6,9 +7,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const specsList = document.getElementById('specs-list');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
+    const currentPartDisplay = document.getElementById('current-part');
+    const totalPartsDisplay = document.getElementById('total-parts');
     const detailBtn = document.getElementById('detail-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
     const resetBtn = document.getElementById('reset-btn');
     const autoBtn = document.getElementById('auto-btn');
+    const rotateViewBtn = document.getElementById('rotate-view');
+    const zoomInBtn = document.getElementById('zoom-in');
+    const zoomOutBtn = document.getElementById('zoom-out');
     const partModal = document.getElementById('part-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalDescription = document.getElementById('modal-description');
@@ -16,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalSpecs = document.getElementById('modal-specs');
     const modalFunfact = document.getElementById('modal-funfact');
     const closeModal = document.querySelector('.close-modal');
+    const modalZoomIn = document.querySelector('.modal .zoom-in');
+    const modalZoomOut = document.querySelector('.modal .zoom-out');
 
     // 3D Printer parts data with realistic details
     const parts = [
@@ -32,7 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
             specs: [
                 { name: "Material", value: "Aluminum 2040 Extrusion" },
                 { name: "Dimensions", value: "400x400x500 mm" },
-                { name: "Weight", value: "3.2 kg" }
+                { name: "Weight", value: "3.2 kg" },
+                { name: "T-slot", value: "V-slot 20x20" }
             ],
             image: "https://m.media-amazon.com/images/I/71YyQ1V3HQL._AC_UF1000,1000_QL80_.jpg",
             funfact: "The frame's rigidity directly impacts print quality. A 1mm vibration can cause visible artifacts in your prints."
@@ -69,7 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
             specs: [
                 { name: "Type", value: "Linear Rails" },
                 { name: "Length", value: "400 mm" },
-                { name: "Accuracy", value: "±0.01 mm" }
+                { name: "Accuracy", value: "±0.01 mm" },
+                { name: "Bearing Type", value: "Ball Bearings" }
             ],
             image: "https://www.igus.com/info/wp-content/uploads/2020/06/drylin_R_dry-bearing_linear_guide.jpg",
             funfact: "Some high-end printers use magnetic levitation for movement, completely eliminating friction from rails."
@@ -87,7 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
             specs: [
                 { name: "Material", value: "Aluminum Extrusion" },
                 { name: "Length", value: "400 mm" },
-                { name: "Motion", value: "Dual Z-Screw Driven" }
+                { name: "Motion", value: "Dual Z-Screw Driven" },
+                { name: "Weight Capacity", value: "2.5 kg" }
             ],
             image: "https://www.v1e.com/cdn/shop/products/Ender-3-X-Axis-Aluminum-Alloy-Extrusion-Profile-2020-400mm-For-Creality-3D-Printer-Parts-1_800x.jpg",
             funfact: "CoreXY printers use a different motion system where the gantry doesn't move, reducing weight and increasing speed."
@@ -183,140 +196,262 @@ document.addEventListener('DOMContentLoaded', () => {
                 { name: "Touch", value: "Capacitive" },
                 { name: "Connectivity", value: "USB, WiFi" }
             ],
-            image: "https://m.media-amazon.com/images/I/71JkTa2VzQL._AC_UF1000,1000_QL80_.jpg",
+            image: "https://m.media-amazon.com/images/I/71eCSa2PtbL._AC_SL1500_.jpg",
             funfact: "Some printers now offer webcam integration directly in the display for remote monitoring of prints."
         }
     ];
     
-    let currentPart = 0;
+    // State variables
+    let currentPartIndex = -1;
     const totalParts = parts.length;
     let autoAssembleInterval = null;
     let assembledParts = [];
+    let isRotating = false;
+    let zoomLevel = 1;
+    let modalZoomLevel = 1;
+
+    // Initialize the app
+    // Initialize the app
+function init() {
+    totalPartsDisplay.textContent = totalParts;
+    createPrinterParts();
+    setupEventListeners();
+    
+    // Add click-to-start functionality
+    document.addEventListener('click', startAssemblyOnClick, { once: true });
+    
+    // Add touch-to-start for mobile devices
+    document.addEventListener('touchend', startAssemblyOnClick, { once: true });
+    
+    // Create initial 3D printer base visualization
+    createPrinterBaseVisuals();
+}
+
+function startAssemblyOnClick() {
+    if (currentPartIndex === -1) {
+        showNextPart();
+    }
+}
+
+function createPrinterBaseVisuals() {
+    // Add more visual elements to make the printer look better
+    const base = document.createElement('div');
+    base.className = 'printer-base';
+    printerPartsContainer.appendChild(base);
+    
+    // Add some decorative elements
+    const deco1 = document.createElement('div');
+    deco1.className = 'printer-decoration cable';
+    printerPartsContainer.appendChild(deco1);
+    
+    const deco2 = document.createElement('div');
+    deco2.className = 'printer-decoration screw';
+    deco2.style.left = '30%';
+    printerPartsContainer.appendChild(deco2);
+    
+    const deco3 = document.createElement('div');
+    deco3.className = 'printer-decoration screw';
+    deco3.style.left = '70%';
+    printerPartsContainer.appendChild(deco3);
+    
+    // Add some subtle animation to the base
+    anime({
+        targets: '.printer-base',
+        opacity: [0, 1],
+        duration: 1000,
+        easing: 'easeOutQuad'
+    });
+}
 
     // Create all printer parts (initially hidden)
-    parts.forEach((part, index) => {
-        const partElement = document.createElement('div');
-        partElement.className = 'printer-part';
-        partElement.dataset.index = index;
-        partElement.dataset.name = part.name;
-        
-        // Position the part
-        partElement.style.bottom = `${part.bottom}px`;
-        partElement.style.left = part.left || '50%';
-        partElement.style.marginLeft = part.left ? '0' : `-${part.width/2}px`;
-        
-        // Style the part based on its shape
-        if (part.shape === 'rectangle') {
-            partElement.style.width = `${part.width}px`;
-            partElement.style.height = `${part.height}px`;
-            partElement.style.backgroundColor = part.color;
-            partElement.style.borderRadius = '4px';
-        } 
-        else if (part.shape === 'frame') {
-            partElement.style.width = `${part.width}px`;
-            partElement.style.height = `${part.height}px`;
-            partElement.style.border = `5px solid ${part.color}`;
-            partElement.style.backgroundColor = 'transparent';
-            partElement.style.borderRadius = '0';
-        }
-        else if (part.shape === 'rail-y') {
-            partElement.style.width = `${part.width}px`;
-            partElement.style.height = `${part.height}px`;
-            partElement.style.backgroundColor = part.color;
-            partElement.style.borderRadius = '10px';
-            partElement.style.boxShadow = 'inset 0 0 10px rgba(0,0,0,0.3)';
-        }
-        else if (part.shape === 'gantry') {
-            partElement.style.width = `${part.width}px`;
-            partElement.style.height = `${part.height}px`;
-            partElement.style.backgroundColor = part.color;
-            partElement.style.borderRadius = '0';
-            partElement.style.borderTop = '3px solid #707070';
-            partElement.style.borderBottom = '3px solid #707070';
-        }
-        else if (part.shape === 'extruder') {
-            partElement.style.width = `${part.width}px`;
-            partElement.style.height = `${part.height}px`;
-            partElement.style.backgroundColor = part.color;
-            partElement.style.borderRadius = '10px';
-            partElement.style.border = '3px solid #c0392b';
-            partElement.innerHTML = '<div class="gear" style="position:absolute;width:30px;height:30px;background-color:#333;border-radius:50%;top:15px;left:25px;"></div>';
-        }
-        else if (part.shape === 'hotend') {
-            partElement.style.width = `${part.width}px`;
-            partElement.style.height = `${part.height}px`;
-            partElement.style.backgroundColor = 'linear-gradient(to bottom, #c0392b, #e74c3c)';
-            partElement.style.backgroundColor = part.color;
-            partElement.style.borderRadius = '0 0 15px 15px';
-            partElement.style.borderBottom = '3px solid #922';
-        }
-        
-        // Create tooltip
-        const tooltip = document.createElement('div');
-        tooltip.className = 'tooltip';
-        tooltip.textContent = part.name;
-        partElement.appendChild(tooltip);
-        
-        // Add click event for showing details
-        partElement.addEventListener('click', (e) => {
-            if (partElement.style.opacity === '1') {
-                showPartDetails(index);
-                e.stopPropagation();
-            }
-        });
-        
-        // Add hover effects
-        partElement.addEventListener('mouseenter', () => {
-            if (partElement.style.opacity === '1') {
-                tooltip.style.opacity = '1';
-                partElement.classList.add('pulse');
-            }
-        });
-        
-        partElement.addEventListener('mouseleave', () => {
-            tooltip.style.opacity = '0';
-            partElement.classList.remove('pulse');
-        });
-        
-        printerPartsContainer.appendChild(partElement);
-    });
-    
-    // Function to animate the next part
-    function showNextPart() {
-        if (currentPart >= totalParts) {
-            // Printer complete!
-            partTitle.textContent = "3D Printer Assembly Complete!";
-            partDescription.textContent = "Congratulations! You've assembled a complete 3D printer. Now you understand the major components that make additive manufacturing possible.";
-            partSpecs.classList.add('hidden');
-            detailBtn.classList.add('hidden');
+    function createPrinterParts() {
+        parts.forEach((part, index) => {
+            const partElement = document.createElement('div');
+            partElement.className = 'printer-part';
+            partElement.dataset.index = index;
+            partElement.dataset.name = part.name;
             
-            // Celebration animation
-            anime({
-                targets: '#printer-parts .printer-part',
-                translateY: function(el, i) {
-                    return i % 2 === 0 ? -10 : 10;
-                },
-                duration: 1000,
-                direction: 'alternate',
-                loop: 3,
-                easing: 'easeInOutSine'
+            // Position the part
+            partElement.style.bottom = `${part.bottom}px`;
+            partElement.style.left = part.left || '50%';
+            partElement.style.marginLeft = part.left ? '0' : `-${part.width/2}px`;
+            
+            // Style the part based on its shape
+            stylePartElement(partElement, part);
+            
+            // Create tooltip
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.textContent = part.name;
+            partElement.appendChild(tooltip);
+            
+            // Add click event for showing details
+            partElement.addEventListener('click', (e) => {
+                if (partElement.style.opacity === '1') {
+                    showPartDetails(index);
+                    e.stopPropagation();
+                }
             });
             
-            // Change progress to complete
-            progressBar.style.width = '100%';
-            progressText.textContent = `${totalParts}/${totalParts}`;
+            // Add hover effects
+            partElement.addEventListener('mouseenter', () => {
+                if (partElement.style.opacity === '1') {
+                    tooltip.style.opacity = '1';
+                    partElement.classList.add('pulse');
+                }
+            });
             
-            // Enable auto-assemble button again
-            autoBtn.disabled = false;
-            autoBtn.innerHTML = '<i class="fas fa-magic"></i> Auto-Assemble';
+            partElement.addEventListener('mouseleave', () => {
+                tooltip.style.opacity = '0';
+                partElement.classList.remove('pulse');
+            });
             
+            printerPartsContainer.appendChild(partElement);
+        });
+    }
+
+    // Style part element based on its shape
+    function stylePartElement(element, part) {
+        if (part.shape === 'rectangle') {
+            element.style.width = `${part.width}px`;
+            element.style.height = `${part.height}px`;
+            element.style.backgroundColor = part.color;
+            element.style.borderRadius = '4px';
+        } 
+        else if (part.shape === 'frame') {
+            element.style.width = `${part.width}px`;
+            element.style.height = `${part.height}px`;
+            element.style.border = `5px solid ${part.color}`;
+            element.style.backgroundColor = 'transparent';
+            element.style.borderRadius = '0';
+        }
+        else if (part.shape === 'rail-y') {
+            element.style.width = `${part.width}px`;
+            element.style.height = `${part.height}px`;
+            element.style.backgroundColor = part.color;
+            element.style.borderRadius = '10px';
+            element.style.boxShadow = 'inset 0 0 10px rgba(0,0,0,0.3)';
+        }
+        else if (part.shape === 'gantry') {
+            element.style.width = `${part.width}px`;
+            element.style.height = `${part.height}px`;
+            element.style.backgroundColor = part.color;
+            element.style.borderRadius = '0';
+            element.style.borderTop = '3px solid #707070';
+            element.style.borderBottom = '3px solid #707070';
+        }
+        else if (part.shape === 'extruder') {
+            element.style.width = `${part.width}px`;
+            element.style.height = `${part.height}px`;
+            element.style.backgroundColor = part.color;
+            element.style.borderRadius = '10px';
+            element.style.border = '3px solid #c0392b';
+            element.innerHTML = '<div class="gear" style="position:absolute;width:30px;height:30px;background-color:#333;border-radius:50%;top:15px;left:25px;"></div>';
+        }
+        else if (part.shape === 'hotend') {
+            element.style.width = `${part.width}px`;
+            element.style.height = `${part.height}px`;
+            element.style.backgroundColor = part.color;
+            element.style.borderRadius = '0 0 15px 15px';
+            element.style.borderBottom = '3px solid #922';
+        }
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // Navigation buttons
+        nextBtn.addEventListener('click', showNextPart);
+        prevBtn.addEventListener('click', showPreviousPart);
+        resetBtn.addEventListener('click', resetAssembly);
+        autoBtn.addEventListener('click', toggleAutoAssemble);
+        
+        // View controls
+        rotateViewBtn.addEventListener('click', toggleRotation);
+        zoomInBtn.addEventListener('click', zoomIn);
+        zoomOutBtn.addEventListener('click', zoomOut);
+        
+        // Modal controls
+        closeModal.addEventListener('click', () => partModal.classList.remove('active'));
+        partModal.addEventListener('click', (e) => {
+            if (e.target === partModal) {
+                partModal.classList.remove('active');
+            }
+        });
+        modalZoomIn.addEventListener('click', () => {
+            modalZoomLevel = Math.min(modalZoomLevel + 0.1, 2);
+            modalImage.style.transform = `scale(${modalZoomLevel})`;
+        });
+        modalZoomOut.addEventListener('click', () => {
+            modalZoomLevel = Math.max(modalZoomLevel - 0.1, 0.5);
+            modalImage.style.transform = `scale(${modalZoomLevel})`;
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowRight') {
+                showNextPart();
+            } else if (e.code === 'ArrowLeft') {
+                showPreviousPart();
+            } else if (e.code === 'Escape') {
+                partModal.classList.remove('active');
+            }
+        });
+    }
+
+    // Function to animate the next part
+    function showNextPart() {
+        if (currentPartIndex >= totalParts - 1) {
+            completeAssembly();
             return;
         }
         
-        const part = parts[currentPart];
-        const partElement = document.querySelector(`.printer-part[data-index="${currentPart}"]`);
+        currentPartIndex++;
+        const part = parts[currentPartIndex];
+        const partElement = document.querySelector(`.printer-part[data-index="${currentPartIndex}"]`);
         
         // Update info panel
+        updateInfoPanel(part);
+        
+        // Animate the part
+        animatePart(partElement, part);
+        
+        // Update progress
+        updateProgress();
+        
+        // Update button states
+        updateButtonStates();
+    }
+
+    // Function to show previous part
+    function showPreviousPart() {
+        if (currentPartIndex <= 0) return;
+        
+        const partElement = document.querySelector(`.printer-part[data-index="${currentPartIndex}"]`);
+        
+        // Hide current part
+        anime({
+            targets: partElement,
+            opacity: 0,
+            scale: 0,
+            duration: 500,
+            easing: 'easeInOutQuad'
+        });
+        
+        currentPartIndex--;
+        const part = parts[currentPartIndex];
+        
+        // Update info panel
+        updateInfoPanel(part);
+        
+        // Update progress
+        updateProgress();
+        
+        // Update button states
+        updateButtonStates();
+    }
+
+    // Update the info panel with part data
+    function updateInfoPanel(part) {
         partTitle.textContent = part.name;
         partDescription.textContent = part.description;
         
@@ -330,36 +465,87 @@ document.addEventListener('DOMContentLoaded', () => {
         partSpecs.classList.remove('hidden');
         
         // Show detail button
-        detailBtn.onclick = () => showPartDetails(currentPart);
+        detailBtn.onclick = () => showPartDetails(currentPartIndex);
         detailBtn.classList.remove('hidden');
-        
-        // Animate the part
+    }
+
+    // Animate a part into position
+    function animatePart(element, part) {
         anime({
-            targets: partElement,
+            targets: element,
             opacity: [0, 1],
             ...part.animation,
             duration: 1500,
             easing: part.animation.easing || 'easeOutElastic(1, .8)',
             complete: () => {
-                assembledParts.push(currentPart);
+                assembledParts.push(currentPartIndex);
             }
         });
-        
-        // Update progress
-        const progressPercent = (currentPart / totalParts) * 100;
-        progressBar.style.width = `${progressPercent}%`;
-        progressText.textContent = `${currentPart}/${totalParts}`;
-        
-        currentPart++;
     }
-    
+
+    // Update progress display
+    function updateProgress() {
+        const progressPercent = ((currentPartIndex + 1) / totalParts) * 100;
+        progressBar.style.width = `${progressPercent}%`;
+        currentPartDisplay.textContent = currentPartIndex + 1;
+        progressText.textContent = `${Math.round(progressPercent)}%`;
+    }
+
+    // Update navigation button states
+    function updateButtonStates() {
+        prevBtn.disabled = currentPartIndex <= 0;
+        nextBtn.disabled = currentPartIndex >= totalParts - 1;
+    }
+
+    // Complete the assembly
+    function completeAssembly() {
+        // Printer complete!
+        partTitle.textContent = "3D Printer Assembly Complete!";
+        partDescription.textContent = "Congratulations! You've assembled a complete 3D printer. Now you understand the major components that make additive manufacturing possible.";
+        partSpecs.classList.add('hidden');
+        detailBtn.classList.add('hidden');
+        
+        // Celebration animation
+        anime({
+            targets: '#printer-parts .printer-part',
+            translateY: function(el, i) {
+                return i % 2 === 0 ? -10 : 10;
+            },
+            duration: 1000,
+            direction: 'alternate',
+            loop: 3,
+            easing: 'easeInOutSine'
+        });
+        
+        // Stop auto-assemble if running
+        if (autoAssembleInterval) {
+            clearInterval(autoAssembleInterval);
+            autoAssembleInterval = null;
+            autoBtn.innerHTML = '<i class="fas fa-magic"></i> Auto-Assemble';
+        }
+    }
+
     // Show detailed part view in modal
     function showPartDetails(index) {
         const part = parts[index];
         modalTitle.textContent = part.name;
         modalDescription.textContent = part.description;
+        
+        // Reset zoom
+        modalZoomLevel = 1;
+        modalImage.style.transform = 'scale(1)';
+        
+        // Show loading state
+        const loader = document.querySelector('.image-loader');
+        loader.style.display = 'flex';
+        modalImage.src = '';
+        
+        // Load image
         modalImage.src = part.image;
         modalImage.alt = part.name;
+        modalImage.onload = () => {
+            loader.style.display = 'none';
+        };
         
         // Add specs
         modalSpecs.innerHTML = '';
@@ -375,14 +561,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show modal
         partModal.classList.add('active');
     }
-    
+
     // Reset assembly
     function resetAssembly() {
         // Stop auto-assemble if running
         if (autoAssembleInterval) {
             clearInterval(autoAssembleInterval);
             autoAssembleInterval = null;
-            autoBtn.disabled = false;
             autoBtn.innerHTML = '<i class="fas fa-magic"></i> Auto-Assemble';
         }
         
@@ -394,68 +579,86 @@ document.addEventListener('DOMContentLoaded', () => {
             duration: 500,
             easing: 'easeInOutQuad',
             complete: () => {
-                currentPart = 0;
+                currentPartIndex = -1;
                 assembledParts = [];
-                progressBar.style.width = '0%';
-                progressText.textContent = `0/${totalParts}`;
+                updateProgress();
                 
                 // Reset info panel
                 partTitle.textContent = "Welcome to 3D Printer Assembly";
                 partDescription.textContent = "Click anywhere to begin assembling your 3D printer and learning about additive manufacturing technology!";
                 partSpecs.classList.add('hidden');
                 detailBtn.classList.add('hidden');
+                
+                // Reset button states
+                updateButtonStates();
             }
         });
     }
-    
-    // Auto-assemble function
-    function startAutoAssemble() {
-        autoBtn.disabled = true;
-        autoBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Assembling...';
-        
-        // First reset if needed
-        if (currentPart > 0) {
-            resetAssembly();
-            setTimeout(startAutoAssemble, 1000);
-            return;
-        }
-        
-        autoAssembleInterval = setInterval(() => {
-            showNextPart();
-            if (currentPart >= totalParts) {
-                clearInterval(autoAssembleInterval);
-                autoAssembleInterval = null;
+
+    // Toggle auto-assemble
+    function toggleAutoAssemble() {
+        if (autoAssembleInterval) {
+            // Stop auto-assemble
+            clearInterval(autoAssembleInterval);
+            autoAssembleInterval = null;
+            autoBtn.innerHTML = '<i class="fas fa-magic"></i> Auto-Assemble';
+        } else {
+            // Start auto-assemble
+            autoBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Auto-Assembling';
+            
+            // First reset if needed
+            if (currentPartIndex >= 0) {
+                resetAssembly();
+                setTimeout(() => {
+                    autoAssembleInterval = setInterval(autoAssembleStep, 2000);
+                }, 1000);
+            } else {
+                autoAssembleInterval = setInterval(autoAssembleStep, 2000);
             }
-        }, 2000);
+        }
     }
-    
-    // Click handler for the entire document
-    document.addEventListener('click', showNextPart);
-    
-    // Keyboard support
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' || e.code === 'ArrowRight') {
+
+    // Single step of auto-assemble
+    function autoAssembleStep() {
+        if (currentPartIndex < totalParts - 1) {
             showNextPart();
-        } else if (e.code === 'ArrowLeft' && currentPart > 0) {
-            // Optional: Add backward navigation
+        } else {
+            clearInterval(autoAssembleInterval);
+            autoAssembleInterval = null;
+            autoBtn.innerHTML = '<i class="fas fa-magic"></i> Auto-Assemble';
         }
-    });
-    
-    // Reset button
-    resetBtn.addEventListener('click', resetAssembly);
-    
-    // Auto-assemble button
-    autoBtn.addEventListener('click', startAutoAssemble);
-    
-    // Close modal
-    closeModal.addEventListener('click', () => {
-        partModal.classList.remove('active');
-    });
-    
-    // Close modal when clicking outside
-    partModal.addEventListener('click', (e) => {
-        if (e.target === partModal) {
-            partModal.classList.remove('active');
+    }
+
+    // Toggle rotation animation
+    function toggleRotation() {
+        isRotating = !isRotating;
+        const parts = document.querySelectorAll('.printer-part');
+        
+        if (isRotating) {
+            rotateViewBtn.innerHTML = '<i class="fas fa-pause"></i> Pause Rotation';
+            parts.forEach(part => {
+                part.style.animation = 'float 6s ease-in-out infinite';
+            });
+        } else {
+            rotateViewBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rotate View';
+            parts.forEach(part => {
+                part.style.animation = 'none';
+            });
         }
-    });
+    }
+
+    // Zoom in view
+    function zoomIn() {
+        zoomLevel = Math.min(zoomLevel + 0.1, 1.5);
+        printerPartsContainer.style.transform = `scale(${zoomLevel})`;
+    }
+
+    // Zoom out view
+    function zoomOut() {
+        zoomLevel = Math.max(zoomLevel - 0.1, 0.7);
+        printerPartsContainer.style.transform = `scale(${zoomLevel})`;
+    }
+
+    // Initialize the app
+    init();
 });
